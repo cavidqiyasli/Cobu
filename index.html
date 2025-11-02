@@ -2,14 +2,89 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Salam Dünya!</title>
+  <title>2D Quş Baxışı Oyun</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { background:#222; color:#0f0; font-family:Arial; text-align:center; margin-top:100px; }
-    button { padding:10px 20px; font-size:18px; cursor:pointer; }
+    body { margin: 0; background: #111; overflow: hidden; }
+    canvas { display: block; margin: auto; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 </head>
 <body>
-  <h1>Salam! Bu mənim ilk veb saytımdır 🎮</h1>
-  <button onclick="alert('Oyuna xoş gəldin!')">Oyna</button>
+<script>
+const config = {
+  type: Phaser.AUTO,
+  width: 800,
+  height: 600,
+  backgroundColor: '#222',
+  physics: { default: 'arcade', arcade: { debug: false } },
+  scene: { preload, create, update }
+};
+
+let player;
+let bullets;
+let lastFired = 0;
+
+const game = new Phaser.Game(config);
+
+function preload() {}
+
+function create() {
+  // Oyuncu (dairə)
+  player = this.add.circle(400, 300, 20, 0x00ff00);
+  this.physics.add.existing(player);
+  player.body.setCollideWorldBounds(true);
+
+  // Güllələr qrupu
+  bullets = this.physics.add.group({
+    defaultKey: null,
+    maxSize: 20
+  });
+
+  // Maus hərəkəti və klik
+  this.input.on('pointermove', pointer => {
+    const angle = Phaser.Math.Angle.Between(
+      player.x, player.y, pointer.x, pointer.y
+    );
+    player.rotation = angle;
+  });
+
+  this.input.on('pointerdown', pointer => {
+    shoot.call(this, pointer);
+  });
+}
+
+function update(time) {
+  const speed = 200;
+  const cursors = this.input.keyboard.createCursorKeys();
+
+  player.body.setVelocity(0);
+  if (cursors.left.isDown) player.body.setVelocityX(-speed);
+  if (cursors.right.isDown) player.body.setVelocityX(speed);
+  if (cursors.up.isDown) player.body.setVelocityY(-speed);
+  if (cursors.down.isDown) player.body.setVelocityY(speed);
+}
+
+function shoot(pointer) {
+  const scene = this;
+  const bullet = bullets.get(player.x, player.y, null);
+  if (!bullet) return;
+
+  // Güllə (kiçik dairə)
+  bullet.setFillStyle(0xff0000, 1);
+  bullet.setSize(8, 8);
+  bullet.displayWidth = 8;
+  bullet.displayHeight = 8;
+
+  scene.add.existing(bullet);
+  scene.physics.add.existing(bullet);
+  const angle = Phaser.Math.Angle.Between(player.x, player.y, pointer.x, pointer.y);
+
+  const velocity = scene.physics.velocityFromRotation(angle, 500);
+  bullet.body.setVelocity(velocity.x, velocity.y);
+
+  setTimeout(() => bullet.destroy(), 1000); // 1 saniyəyə yox olsun
+}
+</script>
 </body>
 </html>
