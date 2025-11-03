@@ -71,15 +71,18 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 15px;
+  display: flex;
+  flex-direction: column;
 }
 .msg {
   margin: 5px 0;
   padding: 8px 12px;
   border-radius: 12px;
   max-width: 75%;
+  word-wrap: break-word;
 }
 .me { background: #0a84ff; align-self: flex-end; color: white; }
-.other { background: #333; color: white; }
+.other { background: #333; align-self: flex-start; color: white; }
 #inputArea {
   display: flex;
   padding: 10px;
@@ -123,16 +126,14 @@ body {
 </head>
 <body>
 
-<!-- 🔹 Soldakı panel -->
 <div id="sidebar">
   <div id="globalBtn" title="Global Chat">🌍</div>
   <div id="users"></div>
 </div>
 
-<!-- 🔹 Chat pəncərəsi -->
 <div id="main">
   <div id="topBar">💬 Online: 0 nəfər</div>
-  <div id="messages"></div>
+  <div id="messages"><div style="text-align:center;color:#aaa;">🌍 Global Chat</div></div>
 
   <div id="inputArea">
     <input id="msgInput" placeholder="Mesaj yaz..." />
@@ -140,7 +141,6 @@ body {
   </div>
 </div>
 
-<!-- 🔹 Daxil ol/çıx -->
 <div id="authArea">
   <button id="loginBtn">Google ilə daxil ol</button>
   <button id="logoutBtn" style="display:none;">Çıxış</button>
@@ -168,17 +168,16 @@ const topBar = document.getElementById("topBar");
 let myId = null;
 let targetId = null;
 let chatMode = "global";
+let userData = null;
 
 auth.onAuthStateChanged(user => {
   if (user) {
+    userData = { name: user.displayName, email: user.email, photo: user.photoURL };
     loginBtn.style.display = "none";
     logoutBtn.style.display = "inline-block";
-    socket.emit("registerUser", {
-      name: user.displayName,
-      email: user.email,
-      photo: user.photoURL
-    });
+    socket.emit("registerUser", userData);
   } else {
+    userData = null;
     loginBtn.style.display = "inline-block";
     logoutBtn.style.display = "none";
   }
@@ -194,7 +193,6 @@ socket.on("connect", () => { myId = socket.id; });
 socket.on("userList", list => {
   const count = Object.keys(list).length;
   topBar.textContent = `💬 Online: ${count} nəfər`;
-
   usersDiv.innerHTML = "";
   for (let id in list) {
     if (id === socket.id) continue;
@@ -224,22 +222,24 @@ msgInput.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage()
 
 function sendMessage() {
   const text = msgInput.value.trim();
-  if (!text) return;
+  if (!text || !userData) return;
   if (chatMode === "global") {
-    socket.emit("globalMessage", { text });
+    socket.emit("globalMessage", { text, ...userData });
     appendMessage("Sən", text, "me");
   } else if (targetId) {
-    socket.emit("privateMessage", { to: targetId, text });
+    socket.emit("privateMessage", { to: targetId, text, ...userData });
     appendMessage("Sən", text, "me");
   }
   msgInput.value = "";
 }
 
 socket.on("globalMessage", msg => {
-  if (chatMode === "global") appendMessage(msg.name, msg.text, "other");
+  if (msg.email !== userData?.email && chatMode === "global")
+    appendMessage(msg.name, msg.text, "other");
 });
 socket.on("privateMessage", msg => {
-  if (chatMode === "private") appendMessage(msg.name, msg.text, "other");
+  if (msg.email !== userData?.email && chatMode === "private")
+    appendMessage(msg.name, msg.text, "other");
 });
 
 function appendMessage(sender, text, cls) {
