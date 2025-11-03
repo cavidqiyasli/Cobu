@@ -2,153 +2,86 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>2D Multiplayer Oyun (Atəşli)</title>
+  <title>Canlı Yazışma</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { margin: 0; background: #111; overflow: hidden; }
-    canvas { display: block; margin: auto; }
+    body {
+      background: #111;
+      color: white;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #messages {
+      flex: 1;
+      width: 90%;
+      max-width: 500px;
+      background: #222;
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+    #inputArea {
+      display: flex;
+      width: 90%;
+      max-width: 500px;
+      margin-bottom: 10px;
+    }
+    input {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 10px 0 0 10px;
+      outline: none;
+    }
+    button {
+      padding: 10px;
+      border: none;
+      background: #28a745;
+      color: white;
+      border-radius: 0 10px 10px 0;
+      cursor: pointer;
+    }
   </style>
-
-  <!-- Phaser kitabxanası -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
-
-  <!-- Socket.io -->
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-<script>
-const config = {
-  type: Phaser.AUTO,
-  width: 800,
-  height: 600,
-  backgroundColor: '#222',
-  physics: {
-    default: 'arcade',
-    arcade: { debug: false }
-  },
-  scene: { preload, create, update }
-};
+  <h1>💬 Canlı Yazışma</h1>
+  <div id="messages"></div>
 
-let player;
-let bullets;
-let otherBullets = [];
-let keys;
-let others = {};
-let lastFired = 0;
+  <div id="inputArea">
+    <input id="msgInput" type="text" placeholder="Mesaj yaz..." />
+    <button onclick="sendMessage()">Göndər</button>
+  </div>
 
-// ⚡ Serverə qoşul
-const socket = io("https://cobu.onrender.com");
+  <script>
+    const socket = io("https://cobu.onrender.com"); // Burada sənin Render linkin qalır
+    const messagesDiv = document.getElementById("messages");
+    const input = document.getElementById("msgInput");
 
-const game = new Phaser.Game(config);
+    socket.on("chatMessage", msg => {
+      const p = document.createElement("p");
+      p.textContent = msg;
+      messagesDiv.appendChild(p);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
 
-function preload() {}
-
-function create() {
-  const scene = this;
-
-  // Öz oyunçun (yaşıl)
-  player = scene.add.circle(400, 300, 20, 0x00ff00);
-  scene.physics.add.existing(player);
-  player.body.setCollideWorldBounds(true);
-
-  // Öz güllələrin qrupu
-  bullets = scene.physics.add.group();
-
-  // Klaviatura
-  keys = scene.input.keyboard.addKeys({
-    up: 'W', down: 'S', left: 'A', right: 'D'
-  });
-
-  // Maus istiqaməti
-  scene.input.on('pointermove', pointer => {
-    const angle = Phaser.Math.Angle.Between(player.x, player.y, pointer.x, pointer.y);
-    player.rotation = angle;
-  });
-
-  // Maus klik = atəş
-  scene.input.on('pointerdown', pointer => {
-    shoot(scene, pointer);
-  });
-
-  // Yeni oyunçu
-  socket.emit("newPlayer", { x: player.x, y: player.y });
-
-  // Yeni oyunçu qoşulanda
-  socket.on("playerJoined", data => {
-    if (!others[data.id]) {
-      const other = scene.add.circle(data.x, data.y, 20, 0x0000ff);
-      others[data.id] = other;
-    }
-  });
-
-  // Oyunçuların mövqeləri
-  socket.on("positions", players => {
-    for (let id in players) {
-      if (id !== socket.id) {
-        if (!others[id]) {
-          others[id] = scene.add.circle(players[id].x, players[id].y, 20, 0x0000ff);
-        } else {
-          others[id].x = players[id].x;
-          others[id].y = players[id].y;
-        }
+    function sendMessage() {
+      const text = input.value.trim();
+      if (text) {
+        socket.emit("chatMessage", text);
+        input.value = "";
       }
     }
-  });
 
-  // Oyunçu çıxanda
-  socket.on("playerLeft", id => {
-    if (others[id]) {
-      others[id].destroy();
-      delete others[id];
-    }
-  });
-
-  // 🔹 Digər oyunçuların atışları
-  socket.on("playerShoot", data => {
-    if (data.id !== socket.id) {
-      const bullet = scene.add.circle(data.x, data.y, 5, 0xff0000);
-      scene.physics.add.existing(bullet);
-      const velocity = scene.physics.velocityFromRotation(data.angle, 600);
-      bullet.body.setVelocity(velocity.x, velocity.y);
-      otherBullets.push(bullet);
-      scene.time.delayedCall(1500, () => bullet.destroy());
-    }
-  });
-}
-
-function update(time) {
-  const speed = 250;
-  player.body.setVelocity(0);
-
-  if (keys.left.isDown) player.body.setVelocityX(-speed);
-  if (keys.right.isDown) player.body.setVelocityX(speed);
-  if (keys.up.isDown) player.body.setVelocityY(-speed);
-  if (keys.down.isDown) player.body.setVelocityY(speed);
-
-  // Öz mövqeyini serverə göndər
-  socket.emit("move", { x: player.x, y: player.y });
-}
-
-// 🔫 Atəş funksiyası
-function shoot(scene, pointer) {
-  const now = scene.time.now;
-  if (now - lastFired < 200) return; // sürətli spamı önlə
-  lastFired = now;
-
-  const bullet = scene.add.circle(player.x, player.y, 5, 0xff0000);
-  scene.physics.add.existing(bullet);
-
-  const angle = Phaser.Math.Angle.Between(player.x, player.y, pointer.x, pointer.y);
-  const speed = 600;
-  const velocity = scene.physics.velocityFromRotation(angle, speed);
-  bullet.body.setVelocity(velocity.x, velocity.y);
-
-  // 🔹 Serverə bildir ki, mən atəş açdım
-  socket.emit("shoot", { x: player.x, y: player.y, angle });
-
-  // Güllə 1.5 saniyədən sonra yox olsun
-  scene.time.delayedCall(1500, () => bullet.destroy());
-}
-</script>
+    // Enter düyməsi ilə göndər
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
 </body>
 </html>
