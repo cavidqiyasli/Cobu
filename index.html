@@ -252,7 +252,6 @@ async function sendMessage() {
 
   if (chatMode === "global") {
     socket.emit("globalMessage", msgData);
-    appendMessage("Sən", text, "me");
     await addDoc(collection(db, "messages"), msgData);
   } else if (targetId) {
     socket.emit("privateMessage", { to: targetId, ...msgData });
