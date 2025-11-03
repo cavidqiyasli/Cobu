@@ -56,3 +56,12 @@ setInterval(() => {
 
 // 🔹 Serveri işə sal
 server.listen(10000, () => console.log('Server işə düşdü, port: 10000'));
+
+// Her 5 saniyede bir oyunculardan "ping" al
+io.on('connection', socket => {
+  socket.on('pingCheck', () => {
+    socket.emit('pongCheck');
+  });
+});
+
+
