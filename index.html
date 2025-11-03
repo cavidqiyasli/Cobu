@@ -2,17 +2,140 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Canlı Yazışma + Şəxsi mesajlar</title>
+  <title>💬 Cobu Chat — Şəxsi mesajlaşma</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body {background:#111;color:#fff;font-family:sans-serif;margin:0;padding:10px;display:flex;flex-direction:column;align-items:center;height:100vh;}
-    #messages, #privateBox {flex:1;width:100%;max-width:600px;background:#222;border-radius:10px;padding:10px;overflow:auto;margin-bottom:10px}
-    #inputArea {display:flex;width:100%;max-width:600px}
-    input {flex:1;padding:10px;border:none;border-radius:10px 0 0 10px}
-    button {padding:10px;border:none;background:#28a745;color:white;border-radius:0 10px 10px 0;cursor:pointer}
-    #users {background:#1a1a1a;width:100%;max-width:600px;padding:10px;border-radius:10px;margin-bottom:10px;}
-    .user {padding:6px;border-bottom:1px solid #333;cursor:pointer}
-    .user:hover {background:#333}
+    body {
+      margin: 0;
+      background: #121212;
+      color: white;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sol panel — profil şəkilləri */
+    #users {
+      width: 90px;
+      background: #1e1e1e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 5px;
+      overflow-y: auto;
+      border-right: 1px solid #333;
+    }
+
+    .user {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin: 8px 0;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .user:hover { transform: scale(1.1); }
+
+    .user img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 2px solid #444;
+    }
+
+    /* Sağ tərəf — chat pəncərəsi */
+    #chatArea {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #181818;
+    }
+
+    #header {
+      padding: 10px;
+      background: #222;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #header img {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+    }
+
+    .msg {
+      margin: 5px 0;
+      padding: 8px 12px;
+      border-radius: 12px;
+      max-width: 75%;
+    }
+
+    .me {
+      background: #0a84ff;
+      align-self: flex-end;
+      color: white;
+    }
+
+    .other {
+      background: #333;
+      align-self: flex-start;
+      color: white;
+    }
+
+    #inputArea {
+      display: flex;
+      padding: 10px;
+      background: #222;
+    }
+
+    #msgInput {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      outline: none;
+      background: #333;
+      color: white;
+    }
+
+    #sendBtn {
+      margin-left: 8px;
+      background: #0a84ff;
+      border: none;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #authArea {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+
+    #loginBtn, #logoutBtn {
+      background: #1976d2;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
   </style>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -20,29 +143,28 @@
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-  <h2>💬 Canlı Yazışma — Google ilə</h2>
-
-  <div id="userInfo">
-    <span id="who">Giriş olunmayıb</span>
-    <button id="loginBtn">Google ilə daxil ol</button>
-    <button id="logoutBtn" style="display:none">Çıxış</button>
-  </div>
 
   <div id="users"></div>
 
-  <div id="messages"></div>
-
-  <div id="privateBox" style="display:none;">
-    <h4 id="privateWith"></h4>
-    <div id="privateMsgs"></div>
+  <div id="chatArea">
+    <div id="header">
+      <img id="chatPhoto" src="" alt="">
+      <b id="chatName">Heç kim seçilməyib</b>
+    </div>
+    <div id="messages"></div>
+    <div id="inputArea">
+      <input id="msgInput" placeholder="Mesaj yaz..." />
+      <button id="sendBtn">Göndər</button>
+    </div>
   </div>
 
-  <div id="inputArea">
-    <input id="msgInput" type="text" placeholder="Mesaj yaz..." />
-    <button onclick="sendMessage()">Göndər</button>
+  <div id="authArea">
+    <button id="loginBtn">Google ilə daxil ol</button>
+    <button id="logoutBtn" style="display:none;">Çıxış</button>
   </div>
 
 <script>
+  // 🔹 Firebase qoşulması
   const firebaseConfig = {
     apiKey: "AIzaSyDD0ZmMgCNh7ibhUTf8aKZ-Vd6xyDHBThU",
     authDomain: "cobu-chat-5dab7.firebaseapp.com",
@@ -50,29 +172,33 @@
   };
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
+
+  // 🔹 Serverə qoşulma
   const socket = io("https://cobu.onrender.com");
 
-  const who = document.getElementById("who");
+  const usersDiv = document.getElementById("users");
+  const chatName = document.getElementById("chatName");
+  const chatPhoto = document.getElementById("chatPhoto");
+  const messagesDiv = document.getElementById("messages");
+  const msgInput = document.getElementById("msgInput");
+  const sendBtn = document.getElementById("sendBtn");
+
   const loginBtn = document.getElementById("loginBtn");
   const logoutBtn = document.getElementById("logoutBtn");
-  const messagesDiv = document.getElementById("messages");
-  const usersDiv = document.getElementById("users");
-  const msgInput = document.getElementById("msgInput");
-  const privateBox = document.getElementById("privateBox");
-  const privateWith = document.getElementById("privateWith");
-  const privateMsgs = document.getElementById("privateMsgs");
 
   let myId = null;
   let targetId = null;
 
   auth.onAuthStateChanged(user => {
     if (user) {
-      who.textContent = `${user.displayName} (${user.email})`;
       loginBtn.style.display = "none";
       logoutBtn.style.display = "inline-block";
-      socket.emit("registerUser", { name: user.displayName, email: user.email });
+      socket.emit("registerUser", {
+        name: user.displayName,
+        email: user.email,
+        photo: user.photoURL
+      });
     } else {
-      who.textContent = "Giriş olunmayıb";
       loginBtn.style.display = "inline-block";
       logoutBtn.style.display = "none";
     }
@@ -87,52 +213,46 @@
   socket.on("connect", () => { myId = socket.id; });
 
   socket.on("userList", list => {
-    usersDiv.innerHTML = "<b>🧑 İstifadəçilər:</b><br>";
+    usersDiv.innerHTML = "";
     for (let id in list) {
       if (id === socket.id) continue;
       const u = list[id];
       const div = document.createElement("div");
       div.className = "user";
-      div.textContent = u.name + " (" + u.email + ")";
-      div.onclick = () => startPrivateChat(id, u.name);
+      div.innerHTML = `<img src="${u.photo}" title="${u.name}">`;
+      div.onclick = () => selectUser(id, u);
       usersDiv.appendChild(div);
     }
   });
 
-  socket.on("chatMessage", msg => {
-    const p = document.createElement("p");
-    p.innerHTML = `<b>${msg.name}</b>: ${msg.text}`;
-    messagesDiv.appendChild(p);
-  });
+  function selectUser(id, u) {
+    targetId = id;
+    chatName.textContent = u.name;
+    chatPhoto.src = u.photo;
+    messagesDiv.innerHTML = "";
+  }
 
-  socket.on("privateMessage", msg => {
-    privateBox.style.display = "block";
-    privateWith.textContent = "💌 " + msg.name + " ilə yazışma";
-    const p = document.createElement("p");
-    p.textContent = `${msg.name}: ${msg.text}`;
-    privateMsgs.appendChild(p);
-  });
+  sendBtn.onclick = () => sendMessage();
+  msgInput.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
 
   function sendMessage() {
     const text = msgInput.value.trim();
-    if (!text) return;
-    const user = auth.currentUser;
-    if (targetId) {
-      socket.emit("privateMessage", { to: targetId, text });
-      const p = document.createElement("p");
-      p.textContent = `Sən: ${text}`;
-      privateMsgs.appendChild(p);
-    } else {
-      socket.emit("chatMessage", { text, name: user.displayName });
-    }
+    if (!text || !targetId) return;
+    socket.emit("privateMessage", { to: targetId, text });
+    appendMessage("Sən", text, "me");
     msgInput.value = "";
   }
 
-  function startPrivateChat(id, name) {
-    targetId = id;
-    privateBox.style.display = "block";
-    privateWith.textContent = "💌 " + name + " ilə yazışma";
-    privateMsgs.innerHTML = "";
+  socket.on("privateMessage", msg => {
+    appendMessage(msg.name, msg.text, "other");
+  });
+
+  function appendMessage(sender, text, cls) {
+    const div = document.createElement("div");
+    div.className = "msg " + cls;
+    div.textContent = `${sender}: ${text}`;
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
   }
 </script>
 </body>
