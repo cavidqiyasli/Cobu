@@ -1,8 +1,0 @@
-function createBullet(scene, x, y, angle) {
-  const bullet = scene.add.circle(x, y, 5, 0xff0000);
-  scene.physics.add.existing(bullet);
-  const speed = 600;
-  const velocity = scene.physics.velocityFromRotation(angle, speed);
-  bullet.body.setVelocity(velocity.x, velocity.y);
-  scene.time.delayedCall(1500, () => bullet.destroy());
-}
