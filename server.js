@@ -1,22 +1,42 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-io.on('connection', socket => {
-  console.log('Yeni istifadəçi qoşuldu:', socket.id);
+let users = {}; // { socketId: { name, email } }
 
-  socket.on('chatMessage', msg => {
-    console.log('Mesaj:', msg);
-    io.emit('chatMessage', msg);
+io.on("connection", socket => {
+  console.log("Yeni istifadəçi qoşuldu:", socket.id);
+
+  socket.on("registerUser", data => {
+    users[socket.id] = { name: data.name, email: data.email };
+    io.emit("userList", users);
   });
 
-  socket.on('disconnect', () => {
-    console.log('İstifadəçi ayrıldı:', socket.id);
+  socket.on("disconnect", () => {
+    delete users[socket.id];
+    io.emit("userList", users);
+  });
+
+  // Ümumi chat
+  socket.on("chatMessage", msg => {
+    io.emit("chatMessage", msg);
+  });
+
+  // Şəxsi mesaj
+  socket.on("privateMessage", data => {
+    const targetId = data.to;
+    if (users[targetId]) {
+      io.to(targetId).emit("privateMessage", {
+        from: socket.id,
+        name: users[socket.id]?.name,
+        text: data.text,
+        ts: Date.now()
+      });
+    }
   });
 });
 
-server.listen(process.env.PORT || 10000, () => console.log('Chat server işə düşdü'));
+server.listen(10000, () => console.log("Server işə düşdü ✅ port 10000"));
