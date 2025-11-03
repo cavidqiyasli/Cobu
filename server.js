@@ -1,14 +1,20 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const cors = require("cors");
 
 const app = express();
 app.use(cors());
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
 
-let users = {}; // { socket.id: {name, email, photo} }
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+let users = {}; // { socket.id: { name, email, photo } }
 
 io.on("connection", socket => {
   console.log("Yeni istifadəçi qoşuldu:", socket.id);
@@ -46,8 +52,10 @@ io.on("connection", socket => {
   socket.on("disconnect", () => {
     console.log("İstifadəçi ayrıldı:", socket.id);
     delete users[socket.id];
-    io.emit("userList", users); // siyahını yenilə
+    io.emit("userList", users);
   });
 });
 
-server.listen(10000, () => console.log("✅ Server işə düşdü, port: 10000"));
+// 🔹 Render üçün düzgün port
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, () => console.log(`✅ Server işə düşdü, port: ${PORT}`));
