@@ -9,10 +9,8 @@ const io = new Server(server, { cors: { origin: "*" } });
 io.on('connection', socket => {
   console.log('Yeni istifadəçi qoşuldu:', socket.id);
 
-  // Mesaj al
   socket.on('chatMessage', msg => {
     console.log('Mesaj:', msg);
-    // Bütün istifadəçilərə göndər
     io.emit('chatMessage', msg);
   });
 
@@ -21,4 +19,4 @@ io.on('connection', socket => {
   });
 });
 
-server.listen(10000, () => console.log('Chat server işə düşdü, port: 10000'));
+server.listen(process.env.PORT || 10000, () => console.log('Chat server işə düşdü'));
