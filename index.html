@@ -13,7 +13,7 @@ body {
   display: flex;
   height: 100vh;
 }
-#users {
+#sidebar {
   width: 90px;
   background: #1e1e1e;
   display: flex;
@@ -23,39 +23,40 @@ body {
   overflow-y: auto;
   border-right: 1px solid #333;
 }
-.user {
+.sidebar-item {
   width: 60px;
   height: 60px;
   border-radius: 50%;
   overflow: hidden;
   margin: 8px 0;
   cursor: pointer;
+  transition: transform 0.2s;
 }
-.user img {
+.sidebar-item:hover { transform: scale(1.1); }
+.sidebar-item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
   border: 2px solid #444;
 }
+#globalBtn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #0a84ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 15px;
+  cursor: pointer;
+}
 #main {
   flex: 1;
   display: flex;
   flex-direction: column;
   background: #181818;
-}
-#tabs {
-  display: flex;
-  background: #222;
-}
-.tab {
-  flex: 1;
-  text-align: center;
-  padding: 10px;
-  cursor: pointer;
-}
-.tab.active {
-  background: #0a84ff;
 }
 #messages {
   flex: 1;
@@ -112,14 +113,15 @@ body {
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-<div id="users"></div>
 
+<!-- 🔹 Soldakı panel -->
+<div id="sidebar">
+  <div id="globalBtn" title="Global Chat">🌍</div>
+  <div id="users"></div>
+</div>
+
+<!-- 🔹 Chat pəncərəsi -->
 <div id="main">
-  <div id="tabs">
-    <div id="globalTab" class="tab active">🌍 Global</div>
-    <div id="privateTab" class="tab">💬 Şəxsi</div>
-  </div>
-
   <div id="messages"></div>
 
   <div id="inputArea">
@@ -128,6 +130,7 @@ body {
   </div>
 </div>
 
+<!-- 🔹 Daxil ol/çıx -->
 <div id="authArea">
   <button id="loginBtn">Google ilə daxil ol</button>
   <button id="logoutBtn" style="display:none;">Çıxış</button>
@@ -150,10 +153,11 @@ const sendBtn = document.getElementById("sendBtn");
 
 const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
+const globalBtn = document.getElementById("globalBtn");
 
 let myId = null;
 let targetId = null;
-let currentTab = "global";
+let chatMode = "global";
 
 auth.onAuthStateChanged(user => {
   if (user) {
@@ -183,7 +187,7 @@ socket.on("userList", list => {
     if (id === socket.id) continue;
     const u = list[id];
     const div = document.createElement("div");
-    div.className = "user";
+    div.className = "sidebar-item";
     div.innerHTML = `<img src="${u.photo}" title="${u.name}">`;
     div.onclick = () => selectUser(id, u);
     usersDiv.appendChild(div);
@@ -192,17 +196,14 @@ socket.on("userList", list => {
 
 function selectUser(id, u) {
   targetId = id;
-  currentTab = "private";
-  document.getElementById("globalTab").classList.remove("active");
-  document.getElementById("privateTab").classList.add("active");
-  messagesDiv.innerHTML = `<div style='text-align:center;color:#aaa'>${u.name} ilə şəxsi mesaj</div>`;
+  chatMode = "private";
+  messagesDiv.innerHTML = `<div style='text-align:center;color:#aaa;margin-bottom:8px;'>${u.name} ilə şəxsi mesaj</div>`;
 }
 
-document.getElementById("globalTab").onclick = () => {
-  currentTab = "global";
-  document.getElementById("globalTab").classList.add("active");
-  document.getElementById("privateTab").classList.remove("active");
-  messagesDiv.innerHTML = "";
+globalBtn.onclick = () => {
+  chatMode = "global";
+  targetId = null;
+  messagesDiv.innerHTML = "<div style='text-align:center;color:#aaa;'>🌍 Global Chat</div>";
 };
 
 sendBtn.onclick = () => sendMessage();
@@ -211,7 +212,7 @@ msgInput.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage()
 function sendMessage() {
   const text = msgInput.value.trim();
   if (!text) return;
-  if (currentTab === "global") {
+  if (chatMode === "global") {
     socket.emit("globalMessage", { text });
     appendMessage("Sən", text, "me");
   } else if (targetId) {
@@ -222,10 +223,10 @@ function sendMessage() {
 }
 
 socket.on("globalMessage", msg => {
-  if (currentTab === "global") appendMessage(msg.name, msg.text, "other");
+  if (chatMode === "global") appendMessage(msg.name, msg.text, "other");
 });
 socket.on("privateMessage", msg => {
-  if (currentTab === "private") appendMessage(msg.name, msg.text, "other");
+  if (chatMode === "private") appendMessage(msg.name, msg.text, "other");
 });
 
 function appendMessage(sender, text, cls) {
