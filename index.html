@@ -2,73 +2,36 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>💬 Canlı Yazışma</title>
+  <title>Canlı Yazışma (Google Login)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    * { box-sizing: border-box; }
-    body {
-      background: #111;
-      color: white;
-      font-family: system-ui, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    h1 {
-      margin: 10px 0;
-      font-size: 1.5em;
-    }
-    #messages {
-      flex: 1;
-      width: 95%;
-      max-width: 600px;
-      background: #222;
-      overflow-y: auto;
-      padding: 10px;
-      border-radius: 10px;
-      margin-bottom: 10px;
-      scroll-behavior: smooth;
-    }
-    #inputArea {
-      display: flex;
-      width: 95%;
-      max-width: 600px;
-      margin-bottom: 10px;
-    }
-    input {
-      flex: 1;
-      padding: 14px;
-      font-size: 16px;
-      border: none;
-      border-radius: 10px 0 0 10px;
-      outline: none;
-    }
-    button {
-      padding: 14px 20px;
-      border: none;
-      background: #28a745;
-      color: white;
-      border-radius: 0 10px 10px 0;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:active {
-      background: #1f7a34;
-    }
-    p {
-      background: #333;
-      padding: 8px 12px;
-      border-radius: 10px;
-      margin: 5px 0;
-      word-wrap: break-word;
-    }
+    *{box-sizing:border-box}
+    body{background:#111;color:#fff;font-family:system-ui, sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;margin:0;padding:10px}
+    #messages{flex:1;width:100%;max-width:600px;background:#222;border-radius:10px;padding:10px;overflow:auto;margin-bottom:10px}
+    #inputArea{display:flex;width:100%;max-width:600px}
+    input{flex:1;padding:12px;border-radius:10px 0 0 10px;border:none;outline:none}
+    button{padding:12px;border-radius:0 10px 10px 0;border:none;background:#28a745;color:white;cursor:pointer}
+    #userInfo{width:100%;max-width:600px;color:#ddd;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+    #loginBtn,#logoutBtn{background:#1976d2;color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
   </style>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+  <!-- Socket.io -->
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-  <h1>💬 Canlı Yazışma</h1>
+  <h2>💬 Canlı Yazışma — Google ilə daxil ol</h2>
+
+  <div id="userInfo">
+    <div id="who">Giriş olunmayıb</div>
+    <div>
+      <button id="loginBtn">Google ilə daxil ol</button>
+      <button id="logoutBtn" style="display:none">Çıxış</button>
+    </div>
+  </div>
 
   <div id="messages"></div>
 
@@ -77,32 +40,72 @@
     <button onclick="sendMessage()">Göndər</button>
   </div>
 
-  <script>
-    const socket = io("https://cobu.onrender.com"); // 🔗 Sənin server linkin
-    const messagesDiv = document.getElementById("messages");
-    const input = document.getElementById("msgInput");
+<script>
+  // 🔹 1. BURANI ÖZ FIREBASE KONFİQURASİYANLA DƏYİŞ
+  const firebaseConfig = {
+    apiKey: "SENIN_API_KEY",
+    authDomain: "SENIN_PROJECT.firebaseapp.com",
+    projectId: "SENIN_PROJECT",
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
 
-    // Gələn mesajları göstər
-    socket.on("chatMessage", msg => {
-      const p = document.createElement("p");
-      p.textContent = msg;
-      messagesDiv.appendChild(p);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
+  // 🔹 2. SERVERİN URL-i (Render-dəki linkini yaz)
+  const socket = io("https://cobu.onrender.com");
 
-    // Mesaj göndər
-    function sendMessage() {
-      const text = input.value.trim();
-      if (text) {
-        socket.emit("chatMessage", text);
-        input.value = "";
-      }
+  const messagesDiv = document.getElementById("messages");
+  const input = document.getElementById("msgInput");
+  const loginBtn = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const who = document.getElementById("who");
+
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      who.textContent = `${user.displayName} (${user.email})`;
+      loginBtn.style.display = "none";
+      logoutBtn.style.display = "inline-block";
+    } else {
+      who.textContent = "Giriş olunmayıb";
+      loginBtn.style.display = "inline-block";
+      logoutBtn.style.display = "none";
     }
+  });
 
-    // Enter və ya mobil “Göndər” düyməsi
-    input.addEventListener("keydown", e => {
-      if (e.key === "Enter") sendMessage();
-    });
-  </script>
+  loginBtn.onclick = async () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+      await auth.signInWithPopup(provider);
+    } catch (e) {
+      alert("Daxil olma xətası: " + e.message);
+    }
+  };
+
+  logoutBtn.onclick = () => auth.signOut();
+
+  socket.on("chatMessage", data => {
+    const p = document.createElement("p");
+    p.innerHTML = `<strong>${escapeHtml(data.name || data.email || "Anon")}</strong>: ${escapeHtml(data.text)} <small style="color:#999">${new Date(data.ts).toLocaleTimeString()}</small>`;
+    messagesDiv.appendChild(p);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  });
+
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+    const user = auth.currentUser;
+    const payload = {
+      text,
+      ts: Date.now(),
+      name: user ? user.displayName : null,
+      email: user ? user.email : null
+    };
+    socket.emit("chatMessage", payload);
+    input.value = "";
+  }
+
+  input.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+</script>
 </body>
 </html>
