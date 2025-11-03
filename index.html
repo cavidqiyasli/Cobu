@@ -120,7 +120,33 @@ body {
   cursor: pointer;
 }
 </style>
+</head>
+<body>
 
+<!-- Sidebar -->
+<div id="sidebar">
+  <div id="globalBtn" title="Global Chat">🌍</div>
+  <div id="users"></div>
+</div>
+
+<!-- Main Chat -->
+<div id="main">
+  <div id="topBar">💬 Online: 0 nəfər</div>
+  <div id="messages"><div style="text-align:center;color:#aaa;">🌍 Global Chat</div></div>
+
+  <div id="inputArea">
+    <input id="msgInput" placeholder="Mesaj yaz..." />
+    <button id="sendBtn">Göndər</button>
+  </div>
+</div>
+
+<!-- Auth -->
+<div id="authArea">
+  <button id="loginBtn">Google ilə daxil ol</button>
+  <button id="logoutBtn" style="display:none;">Çıxış</button>
+</div>
+
+<!-- Socket.io -->
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
 <!-- Firebase -->
@@ -129,19 +155,20 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// 🔹 Firebase config
+// ✅ Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyDD0ZmMgCNh7ibhUTf8aKZ-Vd6xyDHBThU",
   authDomain: "cobu-chat-5dab7.firebaseapp.com",
   projectId: "cobu-chat-5dab7",
 };
 
+// ✅ Initialize
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// 🔹 Socket və HTML elementləri
+// ✅ Socket və elementlər
 const socket = io("https://cobu.onrender.com");
 const usersDiv = document.getElementById("users");
 const messagesDiv = document.getElementById("messages");
@@ -152,12 +179,11 @@ const logoutBtn = document.getElementById("logoutBtn");
 const globalBtn = document.getElementById("globalBtn");
 const topBar = document.getElementById("topBar");
 
-let myId = null;
 let targetId = null;
 let chatMode = "global";
 let userData = null;
 
-// 🔹 Auth nəzarət
+// ✅ Auth nəzarət
 onAuthStateChanged(auth, user => {
   if (user) {
     userData = { name: user.displayName, email: user.email, photo: user.photoURL };
@@ -172,12 +198,14 @@ onAuthStateChanged(auth, user => {
   }
 });
 
+// ✅ Google ilə giriş
 loginBtn.onclick = async () => await signInWithPopup(auth, provider);
 logoutBtn.onclick = () => signOut(auth);
 
-socket.on("connect", () => { myId = socket.id; });
+// ✅ Socket bağlantısı
+socket.on("connect", () => console.log("🔗 Serverə qoşuldu"));
 
-// 🔹 Online siyahısı
+// ✅ Online istifadəçi siyahısı
 socket.on("userList", list => {
   const count = Object.keys(list).length;
   topBar.textContent = `💬 Online: ${count} nəfər`;
@@ -193,20 +221,21 @@ socket.on("userList", list => {
   }
 });
 
-// 🔹 İstifadəçi seçmək
+// ✅ İstifadəçi seçmək
 function selectUser(id, u) {
   targetId = id;
   chatMode = "private";
   messagesDiv.innerHTML = `<div style='text-align:center;color:#aaa;margin-bottom:8px;'>${u.name} ilə şəxsi mesaj</div>`;
 }
 
+// ✅ Qlobal çata qayıtmaq
 globalBtn.onclick = () => {
   chatMode = "global";
   targetId = null;
   loadGlobalMessages();
 };
 
-// 🔹 Mesaj göndərmək
+// ✅ Mesaj göndərmək
 sendBtn.onclick = () => sendMessage();
 msgInput.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
 
@@ -232,7 +261,7 @@ async function sendMessage() {
   msgInput.value = "";
 }
 
-// 🔹 Firestore-dan canlı mesaj oxuma
+// ✅ Firestore-dan mesajları yüklə
 function loadGlobalMessages() {
   const q = query(collection(db, "messages"), orderBy("timestamp"));
   onSnapshot(q, snapshot => {
@@ -244,7 +273,7 @@ function loadGlobalMessages() {
   });
 }
 
-// 🔹 Socket mesajları
+// ✅ Socket mesajları
 socket.on("globalMessage", msg => {
   if (msg.email === userData?.email) return;
   if (chatMode === "global") appendMessage(msg.name, msg.text, "other");
@@ -254,7 +283,7 @@ socket.on("privateMessage", msg => {
     appendMessage(msg.name, msg.text, "other");
 });
 
-// 🔹 Ekrana mesaj əlavə
+// ✅ Ekrana mesaj əlavə
 function appendMessage(sender, text, cls) {
   const div = document.createElement("div");
   div.className = "msg " + cls;
