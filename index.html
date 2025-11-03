@@ -2,13 +2,18 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>2D Quş Baxışı Oyun</title>
+  <title>2D Quş Baxışı Oyun (Multiplayer)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { margin: 0; background: #111; overflow: hidden; }
     canvas { display: block; margin: auto; }
   </style>
+
+  <!-- Phaser kitabxanası -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
+  <!-- Socket.io (server əlaqəsi üçün) -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
 <script>
@@ -19,9 +24,7 @@ const config = {
   backgroundColor: '#222',
   physics: {
     default: 'arcade',
-    arcade: {
-      debug: false
-    }
+    arcade: { debug: false }
   },
   scene: { preload, create, update }
 };
@@ -30,6 +33,10 @@ let player;
 let bullets;
 let keys;
 let lastFired = 0;
+let others = {}; // digər oyunçular
+
+// ⚡ Serverə qoşul
+const socket = io("https://cobu.onrender.com");
 
 const game = new Phaser.Game(config);
 
@@ -61,6 +68,39 @@ function create() {
   scene.input.on('pointerdown', pointer => {
     shoot(scene, pointer);
   });
+
+  // 🔹 Serverə yeni oyunçu kimi məlumat göndər
+  socket.emit("newPlayer", { x: player.x, y: player.y });
+
+  // 🔹 Yeni oyunçu qoşulanda
+  socket.on("playerJoined", data => {
+    if (!others[data.id]) {
+      const other = scene.add.circle(data.x, data.y, 20, 0x0000ff);
+      others[data.id] = other;
+    }
+  });
+
+  // 🔹 Digər oyunçuların mövqeləri yenilənəndə
+  socket.on("positions", players => {
+    for (let id in players) {
+      if (id !== socket.id) {
+        if (!others[id]) {
+          others[id] = scene.add.circle(players[id].x, players[id].y, 20, 0x0000ff);
+        } else {
+          others[id].x = players[id].x;
+          others[id].y = players[id].y;
+        }
+      }
+    }
+  });
+
+  // 🔹 Oyunçu çıxanda
+  socket.on("playerLeft", id => {
+    if (others[id]) {
+      others[id].destroy();
+      delete others[id];
+    }
+  });
 }
 
 function update(time) {
@@ -71,6 +111,9 @@ function update(time) {
   if (keys.right.isDown) player.body.setVelocityX(speed);
   if (keys.up.isDown) player.body.setVelocityY(-speed);
   if (keys.down.isDown) player.body.setVelocityY(speed);
+
+  // 🔹 Hər saniyə öz mövqeyini serverə göndər
+  socket.emit("move", { x: player.x, y: player.y });
 }
 
 // Atəş funksiyası
