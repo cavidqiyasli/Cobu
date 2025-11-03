@@ -57,6 +57,15 @@ body {
   display: flex;
   flex-direction: column;
   background: #181818;
+  position: relative;
+}
+#topBar {
+  text-align: center;
+  padding: 10px;
+  background: #222;
+  border-bottom: 1px solid #333;
+  font-size: 16px;
+  color: #aaa;
 }
 #messages {
   flex: 1;
@@ -122,6 +131,7 @@ body {
 
 <!-- 🔹 Chat pəncərəsi -->
 <div id="main">
+  <div id="topBar">💬 Online: 0 nəfər</div>
   <div id="messages"></div>
 
   <div id="inputArea">
@@ -150,10 +160,10 @@ const usersDiv = document.getElementById("users");
 const messagesDiv = document.getElementById("messages");
 const msgInput = document.getElementById("msgInput");
 const sendBtn = document.getElementById("sendBtn");
-
 const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const globalBtn = document.getElementById("globalBtn");
+const topBar = document.getElementById("topBar");
 
 let myId = null;
 let targetId = null;
@@ -182,6 +192,9 @@ logoutBtn.onclick = () => auth.signOut();
 socket.on("connect", () => { myId = socket.id; });
 
 socket.on("userList", list => {
+  const count = Object.keys(list).length;
+  topBar.textContent = `💬 Online: ${count} nəfər`;
+
   usersDiv.innerHTML = "";
   for (let id in list) {
     if (id === socket.id) continue;
