@@ -21,7 +21,7 @@ io.on("connection", socket => {
     io.emit("userList", users);
   });
 
-  // 🔹 Global mesaj
+  // Global mesaj
   socket.on("globalMessage", data => {
     io.emit("globalMessage", {
       name: users[socket.id]?.name,
@@ -31,7 +31,7 @@ io.on("connection", socket => {
     });
   });
 
-  // 🔹 Şəxsi mesaj
+  // Şəxsi mesaj
   socket.on("privateMessage", data => {
     const targetId = data.to;
     if (users[targetId]) {
@@ -46,4 +46,4 @@ io.on("connection", socket => {
   });
 });
 
-server.listen(10000, () => console.log("✅ Server işə düşdü port 10000"));
+server.listen(10000, () => console.log("✅ Server işə düşdü, port: 10000"));
