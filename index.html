@@ -2,55 +2,74 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Canlı Yazışma</title>
+  <title>💬 Canlı Yazışma</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
+    * { box-sizing: border-box; }
     body {
       background: #111;
       color: white;
-      font-family: sans-serif;
+      font-family: system-ui, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       height: 100vh;
       margin: 0;
     }
+    h1 {
+      margin: 10px 0;
+      font-size: 1.5em;
+    }
     #messages {
       flex: 1;
-      width: 90%;
-      max-width: 500px;
+      width: 95%;
+      max-width: 600px;
       background: #222;
       overflow-y: auto;
       padding: 10px;
       border-radius: 10px;
-      margin-top: 10px;
+      margin-bottom: 10px;
+      scroll-behavior: smooth;
     }
     #inputArea {
       display: flex;
-      width: 90%;
-      max-width: 500px;
+      width: 95%;
+      max-width: 600px;
       margin-bottom: 10px;
     }
     input {
       flex: 1;
-      padding: 10px;
+      padding: 14px;
+      font-size: 16px;
       border: none;
       border-radius: 10px 0 0 10px;
       outline: none;
     }
     button {
-      padding: 10px;
+      padding: 14px 20px;
       border: none;
       background: #28a745;
       color: white;
       border-radius: 0 10px 10px 0;
       cursor: pointer;
+      font-size: 16px;
+    }
+    button:active {
+      background: #1f7a34;
+    }
+    p {
+      background: #333;
+      padding: 8px 12px;
+      border-radius: 10px;
+      margin: 5px 0;
+      word-wrap: break-word;
     }
   </style>
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
   <h1>💬 Canlı Yazışma</h1>
+
   <div id="messages"></div>
 
   <div id="inputArea">
@@ -59,10 +78,11 @@
   </div>
 
   <script>
-    const socket = io("https://cobu.onrender.com"); // Burada sənin Render linkin qalır
+    const socket = io("https://cobu.onrender.com"); // 🔗 Sənin server linkin
     const messagesDiv = document.getElementById("messages");
     const input = document.getElementById("msgInput");
 
+    // Gələn mesajları göstər
     socket.on("chatMessage", msg => {
       const p = document.createElement("p");
       p.textContent = msg;
@@ -70,6 +90,7 @@
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     });
 
+    // Mesaj göndər
     function sendMessage() {
       const text = input.value.trim();
       if (text) {
@@ -78,7 +99,7 @@
       }
     }
 
-    // Enter düyməsi ilə göndər
+    // Enter və ya mobil “Göndər” düyməsi
     input.addEventListener("keydown", e => {
       if (e.key === "Enter") sendMessage();
     });
