@@ -1,29 +1,41 @@
-const express = require("express");
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+
 const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http, {
-  cors: { origin: "*" }
-});
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
 
-const players = {};
+let players = {};
 
-io.on("connection", socket => {
-  console.log("Yeni oyunçu qoşuldu:", socket.id);
-  players[socket.id] = { x: 400, y: 300 };
+io.on('connection', socket => {
+  console.log('Yeni oyunçu qoşuldu:', socket.id);
 
-  socket.emit("currentPlayers", players);
-  socket.broadcast.emit("newPlayer", { id: socket.id, x: 400, y: 300 });
-
-  socket.on("move", data => {
-    players[socket.id] = data;
-    socket.broadcast.emit("playerMoved", { id: socket.id, ...data });
+  // Yeni oyunçu əlavə olunur
+  socket.on('newPlayer', data => {
+    players[socket.id] = { x: data.x, y: data.y };
+    socket.broadcast.emit('playerJoined', { id: socket.id, x: data.x, y: data.y });
   });
 
-  socket.on("disconnect", () => {
-    console.log("Oyunçu çıxdı:", socket.id);
+  // Oyunçu hərəkət edir
+  socket.on('move', data => {
+    if (players[socket.id]) {
+      players[socket.id].x = data.x;
+      players[socket.id].y = data.y;
+    }
+  });
+
+  // Oyunçu çıxır
+  socket.on('disconnect', () => {
+    console.log('Oyunçu ayrıldı:', socket.id);
     delete players[socket.id];
-    io.emit("playerDisconnected", socket.id);
+    io.emit('playerLeft', socket.id);
   });
 });
 
-http.listen(10000, () => console.log("Server işə düşdü 10000 portunda"));
+// 🔹 Bütün oyunçulara hər 50ms-də mövqeləri göndər
+setInterval(() => {
+  io.emit('positions', players);
+}, 50);
+
+server.listen(10000, () => console.log('Server işə düşdü, port: 10000'));
