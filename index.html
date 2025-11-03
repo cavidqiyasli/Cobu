@@ -2,38 +2,40 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>💬 Canlı Yazışma (Google Login)</title>
+  <title>Canlı Yazışma + Şəxsi mesajlar</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    *{box-sizing:border-box}
-    body{background:#111;color:#fff;font-family:system-ui, sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;margin:0;padding:10px}
-    #messages{flex:1;width:100%;max-width:600px;background:#222;border-radius:10px;padding:10px;overflow:auto;margin-bottom:10px}
-    #inputArea{display:flex;width:100%;max-width:600px}
-    input{flex:1;padding:12px;border-radius:10px 0 0 10px;border:none;outline:none}
-    button{padding:12px;border-radius:0 10px 10px 0;border:none;background:#28a745;color:white;cursor:pointer}
-    #userInfo{width:100%;max-width:600px;color:#ddd;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
-    #loginBtn,#logoutBtn{background:#1976d2;color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+    body {background:#111;color:#fff;font-family:sans-serif;margin:0;padding:10px;display:flex;flex-direction:column;align-items:center;height:100vh;}
+    #messages, #privateBox {flex:1;width:100%;max-width:600px;background:#222;border-radius:10px;padding:10px;overflow:auto;margin-bottom:10px}
+    #inputArea {display:flex;width:100%;max-width:600px}
+    input {flex:1;padding:10px;border:none;border-radius:10px 0 0 10px}
+    button {padding:10px;border:none;background:#28a745;color:white;border-radius:0 10px 10px 0;cursor:pointer}
+    #users {background:#1a1a1a;width:100%;max-width:600px;padding:10px;border-radius:10px;margin-bottom:10px;}
+    .user {padding:6px;border-bottom:1px solid #333;cursor:pointer}
+    .user:hover {background:#333}
   </style>
 
-  <!-- Firebase kitabxanaları -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-
-  <!-- Socket.io -->
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-  <h2>💬 Canlı Yazışma — Google ilə daxil ol</h2>
+  <h2>💬 Canlı Yazışma — Google ilə</h2>
 
   <div id="userInfo">
-    <div id="who">Giriş olunmayıb</div>
-    <div>
-      <button id="loginBtn">Google ilə daxil ol</button>
-      <button id="logoutBtn" style="display:none">Çıxış</button>
-    </div>
+    <span id="who">Giriş olunmayıb</span>
+    <button id="loginBtn">Google ilə daxil ol</button>
+    <button id="logoutBtn" style="display:none">Çıxış</button>
   </div>
 
+  <div id="users"></div>
+
   <div id="messages"></div>
+
+  <div id="privateBox" style="display:none;">
+    <h4 id="privateWith"></h4>
+    <div id="privateMsgs"></div>
+  </div>
 
   <div id="inputArea">
     <input id="msgInput" type="text" placeholder="Mesaj yaz..." />
@@ -41,35 +43,34 @@
   </div>
 
 <script>
-  // 🔹 Sənin FIREBASE konfiqurasiyan
   const firebaseConfig = {
     apiKey: "AIzaSyDD0ZmMgCNh7ibhUTf8aKZ-Vd6xyDHBThU",
     authDomain: "cobu-chat-5dab7.firebaseapp.com",
     projectId: "cobu-chat-5dab7",
-    storageBucket: "cobu-chat-5dab7.firebasestorage.app",
-    messagingSenderId: "810986044461",
-    appId: "1:810986044461:web:14816bc8f2733df7434ca4",
-    measurementId: "G-5EJPW0XWMR"
   };
-
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
-
-  // 🔹 SERVERİN URL-i (Render linkin)
   const socket = io("https://cobu.onrender.com");
 
-  const messagesDiv = document.getElementById("messages");
-  const input = document.getElementById("msgInput");
+  const who = document.getElementById("who");
   const loginBtn = document.getElementById("loginBtn");
   const logoutBtn = document.getElementById("logoutBtn");
-  const who = document.getElementById("who");
+  const messagesDiv = document.getElementById("messages");
+  const usersDiv = document.getElementById("users");
+  const msgInput = document.getElementById("msgInput");
+  const privateBox = document.getElementById("privateBox");
+  const privateWith = document.getElementById("privateWith");
+  const privateMsgs = document.getElementById("privateMsgs");
 
-  // 🔹 İstifadəçi vəziyyəti dəyişəndə
+  let myId = null;
+  let targetId = null;
+
   auth.onAuthStateChanged(user => {
     if (user) {
       who.textContent = `${user.displayName} (${user.email})`;
       loginBtn.style.display = "none";
       logoutBtn.style.display = "inline-block";
+      socket.emit("registerUser", { name: user.displayName, email: user.email });
     } else {
       who.textContent = "Giriş olunmayıb";
       loginBtn.style.display = "inline-block";
@@ -77,46 +78,61 @@
     }
   });
 
-  // 🔹 Google ilə daxil ol
   loginBtn.onclick = async () => {
     const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-      await auth.signInWithPopup(provider);
-    } catch (e) {
-      alert("Daxil olma xətası: " + e.message);
-    }
+    await auth.signInWithPopup(provider);
   };
-
-  // 🔹 Çıxış
   logoutBtn.onclick = () => auth.signOut();
 
-  // 🔹 Yeni mesaj gəldikdə
-  socket.on("chatMessage", data => {
-    const p = document.createElement("p");
-    p.innerHTML = `<strong>${escapeHtml(data.name || data.email || "Anon")}</strong>: ${escapeHtml(data.text)} <small style="color:#999">${new Date(data.ts).toLocaleTimeString()}</small>`;
-    messagesDiv.appendChild(p);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  socket.on("connect", () => { myId = socket.id; });
+
+  socket.on("userList", list => {
+    usersDiv.innerHTML = "<b>🧑 İstifadəçilər:</b><br>";
+    for (let id in list) {
+      if (id === socket.id) continue;
+      const u = list[id];
+      const div = document.createElement("div");
+      div.className = "user";
+      div.textContent = u.name + " (" + u.email + ")";
+      div.onclick = () => startPrivateChat(id, u.name);
+      usersDiv.appendChild(div);
+    }
   });
 
-  // 🔹 Mesaj göndərmək
-  async function sendMessage() {
-    const text = input.value.trim();
+  socket.on("chatMessage", msg => {
+    const p = document.createElement("p");
+    p.innerHTML = `<b>${msg.name}</b>: ${msg.text}`;
+    messagesDiv.appendChild(p);
+  });
+
+  socket.on("privateMessage", msg => {
+    privateBox.style.display = "block";
+    privateWith.textContent = "💌 " + msg.name + " ilə yazışma";
+    const p = document.createElement("p");
+    p.textContent = `${msg.name}: ${msg.text}`;
+    privateMsgs.appendChild(p);
+  });
+
+  function sendMessage() {
+    const text = msgInput.value.trim();
     if (!text) return;
     const user = auth.currentUser;
-    const payload = {
-      text,
-      ts: Date.now(),
-      name: user ? user.displayName : null,
-      email: user ? user.email : null
-    };
-    socket.emit("chatMessage", payload);
-    input.value = "";
+    if (targetId) {
+      socket.emit("privateMessage", { to: targetId, text });
+      const p = document.createElement("p");
+      p.textContent = `Sən: ${text}`;
+      privateMsgs.appendChild(p);
+    } else {
+      socket.emit("chatMessage", { text, name: user.displayName });
+    }
+    msgInput.value = "";
   }
 
-  input.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
-
-  function escapeHtml(s){ 
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
+  function startPrivateChat(id, name) {
+    targetId = id;
+    privateBox.style.display = "block";
+    privateWith.textContent = "💌 " + name + " ilə yazışma";
+    privateMsgs.innerHTML = "";
   }
 </script>
 </body>
