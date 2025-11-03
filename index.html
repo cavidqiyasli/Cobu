@@ -234,8 +234,11 @@ function sendMessage() {
 }
 
 socket.on("globalMessage", msg => {
-  if (msg.email !== userData?.email && chatMode === "global")
-    appendMessage(msg.name, msg.text, "other");
+  // Öz mesajını göstərməsin
+  if (msg.email === userData?.email) return;
+  if (chatMode === "global") appendMessage(msg.name, msg.text, "other");
+});
+
 });
 socket.on("privateMessage", msg => {
   if (msg.email !== userData?.email && chatMode === "private")
