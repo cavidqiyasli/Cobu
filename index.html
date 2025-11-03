@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Canlı Yazışma (Google Login)</title>
+  <title>💬 Canlı Yazışma (Google Login)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     *{box-sizing:border-box}
@@ -15,7 +15,7 @@
     #loginBtn,#logoutBtn{background:#1976d2;color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
   </style>
 
-  <!-- Firebase -->
+  <!-- Firebase kitabxanaları -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
@@ -41,16 +41,21 @@
   </div>
 
 <script>
-  // 🔹 1. BURANI ÖZ FIREBASE KONFİQURASİYANLA DƏYİŞ
+  // 🔹 Sənin FIREBASE konfiqurasiyan
   const firebaseConfig = {
-    apiKey: "SENIN_API_KEY",
-    authDomain: "SENIN_PROJECT.firebaseapp.com",
-    projectId: "SENIN_PROJECT",
+    apiKey: "AIzaSyDD0ZmMgCNh7ibhUTf8aKZ-Vd6xyDHBThU",
+    authDomain: "cobu-chat-5dab7.firebaseapp.com",
+    projectId: "cobu-chat-5dab7",
+    storageBucket: "cobu-chat-5dab7.firebasestorage.app",
+    messagingSenderId: "810986044461",
+    appId: "1:810986044461:web:14816bc8f2733df7434ca4",
+    measurementId: "G-5EJPW0XWMR"
   };
+
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
 
-  // 🔹 2. SERVERİN URL-i (Render-dəki linkini yaz)
+  // 🔹 SERVERİN URL-i (Render linkin)
   const socket = io("https://cobu.onrender.com");
 
   const messagesDiv = document.getElementById("messages");
@@ -59,6 +64,7 @@
   const logoutBtn = document.getElementById("logoutBtn");
   const who = document.getElementById("who");
 
+  // 🔹 İstifadəçi vəziyyəti dəyişəndə
   auth.onAuthStateChanged(user => {
     if (user) {
       who.textContent = `${user.displayName} (${user.email})`;
@@ -71,6 +77,7 @@
     }
   });
 
+  // 🔹 Google ilə daxil ol
   loginBtn.onclick = async () => {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
@@ -80,8 +87,10 @@
     }
   };
 
+  // 🔹 Çıxış
   logoutBtn.onclick = () => auth.signOut();
 
+  // 🔹 Yeni mesaj gəldikdə
   socket.on("chatMessage", data => {
     const p = document.createElement("p");
     p.innerHTML = `<strong>${escapeHtml(data.name || data.email || "Anon")}</strong>: ${escapeHtml(data.text)} <small style="color:#999">${new Date(data.ts).toLocaleTimeString()}</small>`;
@@ -89,6 +98,7 @@
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 
+  // 🔹 Mesaj göndərmək
   async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
@@ -105,7 +115,9 @@
 
   input.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
 
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+  function escapeHtml(s){ 
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
+  }
 </script>
 </body>
 </html>
