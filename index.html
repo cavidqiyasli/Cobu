@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>2D Quş Baxışı Oyun (Multiplayer)</title>
+  <title>2D Multiplayer Oyun (Atəşli)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { margin: 0; background: #111; overflow: hidden; }
@@ -12,7 +12,7 @@
   <!-- Phaser kitabxanası -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 
-  <!-- Socket.io (server əlaqəsi üçün) -->
+  <!-- Socket.io -->
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
@@ -31,9 +31,10 @@ const config = {
 
 let player;
 let bullets;
+let otherBullets = [];
 let keys;
+let others = {};
 let lastFired = 0;
-let others = {}; // digər oyunçular
 
 // ⚡ Serverə qoşul
 const socket = io("https://cobu.onrender.com");
@@ -45,34 +46,34 @@ function preload() {}
 function create() {
   const scene = this;
 
-  // Oyuncu (yaşıl dairə)
+  // Öz oyunçun (yaşıl)
   player = scene.add.circle(400, 300, 20, 0x00ff00);
   scene.physics.add.existing(player);
   player.body.setCollideWorldBounds(true);
 
-  // Güllə qrupu
+  // Öz güllələrin qrupu
   bullets = scene.physics.add.group();
 
-  // Klaviatura idarəsi
+  // Klaviatura
   keys = scene.input.keyboard.addKeys({
     up: 'W', down: 'S', left: 'A', right: 'D'
   });
 
-  // Maus hərəkəti - baxış istiqaməti
+  // Maus istiqaməti
   scene.input.on('pointermove', pointer => {
     const angle = Phaser.Math.Angle.Between(player.x, player.y, pointer.x, pointer.y);
     player.rotation = angle;
   });
 
-  // Sol kliklə atəş
+  // Maus klik = atəş
   scene.input.on('pointerdown', pointer => {
     shoot(scene, pointer);
   });
 
-  // 🔹 Serverə yeni oyunçu kimi məlumat göndər
+  // Yeni oyunçu
   socket.emit("newPlayer", { x: player.x, y: player.y });
 
-  // 🔹 Yeni oyunçu qoşulanda
+  // Yeni oyunçu qoşulanda
   socket.on("playerJoined", data => {
     if (!others[data.id]) {
       const other = scene.add.circle(data.x, data.y, 20, 0x0000ff);
@@ -80,7 +81,7 @@ function create() {
     }
   });
 
-  // 🔹 Digər oyunçuların mövqeləri yenilənəndə
+  // Oyunçuların mövqeləri
   socket.on("positions", players => {
     for (let id in players) {
       if (id !== socket.id) {
@@ -94,11 +95,23 @@ function create() {
     }
   });
 
-  // 🔹 Oyunçu çıxanda
+  // Oyunçu çıxanda
   socket.on("playerLeft", id => {
     if (others[id]) {
       others[id].destroy();
       delete others[id];
+    }
+  });
+
+  // 🔹 Digər oyunçuların atışları
+  socket.on("playerShoot", data => {
+    if (data.id !== socket.id) {
+      const bullet = scene.add.circle(data.x, data.y, 5, 0xff0000);
+      scene.physics.add.existing(bullet);
+      const velocity = scene.physics.velocityFromRotation(data.angle, 600);
+      bullet.body.setVelocity(velocity.x, velocity.y);
+      otherBullets.push(bullet);
+      scene.time.delayedCall(1500, () => bullet.destroy());
     }
   });
 }
@@ -112,22 +125,28 @@ function update(time) {
   if (keys.up.isDown) player.body.setVelocityY(-speed);
   if (keys.down.isDown) player.body.setVelocityY(speed);
 
-  // 🔹 Hər saniyə öz mövqeyini serverə göndər
+  // Öz mövqeyini serverə göndər
   socket.emit("move", { x: player.x, y: player.y });
 }
 
-// Atəş funksiyası
+// 🔫 Atəş funksiyası
 function shoot(scene, pointer) {
+  const now = scene.time.now;
+  if (now - lastFired < 200) return; // sürətli spamı önlə
+  lastFired = now;
+
   const bullet = scene.add.circle(player.x, player.y, 5, 0xff0000);
   scene.physics.add.existing(bullet);
 
   const angle = Phaser.Math.Angle.Between(player.x, player.y, pointer.x, pointer.y);
   const speed = 600;
   const velocity = scene.physics.velocityFromRotation(angle, speed);
-
   bullet.body.setVelocity(velocity.x, velocity.y);
 
-  // Güllə 1.5 saniyəyə yox olsun
+  // 🔹 Serverə bildir ki, mən atəş açdım
+  socket.emit("shoot", { x: player.x, y: player.y, angle });
+
+  // Güllə 1.5 saniyədən sonra yox olsun
   scene.time.delayedCall(1500, () => bullet.destroy());
 }
 </script>
