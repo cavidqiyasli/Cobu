@@ -5,13 +5,17 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-let users = {}; // { socketId: { name, email } }
+let users = {}; // { socketId: { name, email, photo } }
 
 io.on("connection", socket => {
   console.log("Yeni istifadəçi qoşuldu:", socket.id);
 
   socket.on("registerUser", data => {
-    users[socket.id] = { name: data.name, email: data.email };
+    users[socket.id] = {
+      name: data.name,
+      email: data.email,
+      photo: data.photo
+    };
     io.emit("userList", users);
   });
 
@@ -20,18 +24,13 @@ io.on("connection", socket => {
     io.emit("userList", users);
   });
 
-  // Ümumi chat
-  socket.on("chatMessage", msg => {
-    io.emit("chatMessage", msg);
-  });
-
-  // Şəxsi mesaj
   socket.on("privateMessage", data => {
     const targetId = data.to;
     if (users[targetId]) {
       io.to(targetId).emit("privateMessage", {
         from: socket.id,
         name: users[socket.id]?.name,
+        photo: users[socket.id]?.photo,
         text: data.text,
         ts: Date.now()
       });
@@ -39,4 +38,4 @@ io.on("connection", socket => {
   });
 });
 
-server.listen(10000, () => console.log("Server işə düşdü ✅ port 10000"));
+server.listen(10000, () => console.log("✅ Server işə düşdü port 10000"));
