@@ -1,48 +1,52 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
 
 const app = express();
+app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-let users = {}; // {socketId: {name, email, photo}}
+let users = {}; // { socket.id: {name, email, photo} }
 
 io.on("connection", socket => {
   console.log("Yeni istifadəçi qoşuldu:", socket.id);
 
-  socket.on("registerUser", data => {
-    users[socket.id] = data;
-    io.emit("userList", users);
+  // 🔹 İstifadəçi qeydiyyatdan keçir
+  socket.on("registerUser", user => {
+    users[socket.id] = user;
+    console.log(`${user.name} daxil oldu`);
+    io.emit("userList", users); // hamıya siyahı göndər
   });
 
-  socket.on("disconnect", () => {
-    delete users[socket.id];
-    io.emit("userList", users);
-  });
-
-  // Global mesaj
-  socket.on("globalMessage", data => {
-    io.emit("globalMessage", {
-      name: users[socket.id]?.name,
-      photo: users[socket.id]?.photo,
-      text: data.text,
-      ts: Date.now()
-    });
-  });
-
-  // Şəxsi mesaj
-  socket.on("privateMessage", data => {
-    const targetId = data.to;
-    if (users[targetId]) {
-      io.to(targetId).emit("privateMessage", {
-        from: socket.id,
-        name: users[socket.id]?.name,
-        photo: users[socket.id]?.photo,
-        text: data.text,
-        ts: Date.now()
+  // 🔹 Global chat mesajı
+  socket.on("globalMessage", msg => {
+    const sender = users[socket.id];
+    if (sender) {
+      io.emit("globalMessage", {
+        name: sender.name,
+        text: msg.text
       });
     }
+  });
+
+  // 🔹 Şəxsi mesaj
+  socket.on("privateMessage", data => {
+    const sender = users[socket.id];
+    if (sender && users[data.to]) {
+      io.to(data.to).emit("privateMessage", {
+        name: sender.name,
+        text: data.text
+      });
+    }
+  });
+
+  // 🔹 İstifadəçi çıxır
+  socket.on("disconnect", () => {
+    console.log("İstifadəçi ayrıldı:", socket.id);
+    delete users[socket.id];
+    io.emit("userList", users); // siyahını yenilə
   });
 });
 
