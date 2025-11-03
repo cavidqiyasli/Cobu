@@ -120,6 +120,7 @@ body {
   cursor: pointer;
 }
 </style>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -239,7 +240,6 @@ socket.on("globalMessage", msg => {
   if (chatMode === "global") appendMessage(msg.name, msg.text, "other");
 });
 
-});
 socket.on("privateMessage", msg => {
   if (msg.email !== userData?.email && chatMode === "private")
     appendMessage(msg.name, msg.text, "other");
